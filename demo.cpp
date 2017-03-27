@@ -65,7 +65,7 @@ inline void set_sample(double* v, size_t size, int64_t i, double n)
         v[i] = n;
 }
 
-// We need our filter to be zero-padded, because otherwise it 
+// We need our kernel to be zero-padded. The kernel itself is windowed because it's not cyclical.
 void init_kernel(const int span, double * real_bins, double * imag_bins)
 {
     double * real_samples = (double*)malloc(span*sizeof(double));
@@ -88,7 +88,7 @@ void init_kernel(const int span, double * real_bins, double * imag_bins)
         value *= window(i, span)/2;
         value *= sqrt(span); // convolution in the spatial domain is equivalent to pointwise multiplication in the frequency domain given a constant
         
-        // the "center" sample of an FFT is the very first one, therefore we have to wrap around the other side
+        // the "center" sample of an FFT (in terms of phase) is the very first one, therefore we have to wrap around the other side
         int index = (i+span/2)%span;
         real_samples[index] = value;
         imag_samples[index] = value;
@@ -180,8 +180,10 @@ int main()
         // (i.e. above 25% of the sample rate) to 0
         for(auto j = 0; j < span; j++)
         {
-            real_bins[j] *= filter_real_bins[j];
-            imag_bins[j] *= filter_imag_bins[j];
+            double real_temp = real_bins[j]*filter_real_bins[j] - imag_bins[j]*filter_imag_bins[j];
+            double imag_temp = imag_bins[j]*filter_real_bins[j] + real_bins[j]*filter_imag_bins[j];
+            real_bins[j] = real_temp;
+            imag_bins[j] = imag_temp;
         }
         
         // turn our filtered frequency data into filtered spatial (waveform) data
